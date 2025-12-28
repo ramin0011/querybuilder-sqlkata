@@ -37,6 +37,10 @@ namespace SqlKata.Compilers
                 query.Select("*");
             }
 
+            // Capture the column list before adding ROW_NUMBER()
+            var columnsCtx = new SqlResult(parameterPlaceholder, EscapeCharacter) { Query = query };
+            var columnsList = CompileColumns(columnsCtx).Substring(7); // Remove "SELECT " prefix
+
             var order = CompileOrders(ctx) ?? "ORDER BY (SELECT 0)";
 
             query.SelectRaw($"ROW_NUMBER() OVER ({order}) AS [row_num]", ctx.Bindings.ToArray());
@@ -48,12 +52,12 @@ namespace SqlKata.Compilers
 
             if (limit == 0)
             {
-                result.RawSql = $"SELECT * FROM ({result.RawSql}) AS [results_wrapper] WHERE [row_num] >= {parameterPlaceholder}";
+                result.RawSql = $"SELECT {columnsList} FROM ({result.RawSql}) AS [results_wrapper] WHERE [row_num] >= {parameterPlaceholder}";
                 result.Bindings.Add(offset + 1);
             }
             else
             {
-                result.RawSql = $"SELECT * FROM ({result.RawSql}) AS [results_wrapper] WHERE [row_num] BETWEEN {parameterPlaceholder} AND {parameterPlaceholder}";
+                result.RawSql = $"SELECT {columnsList} FROM ({result.RawSql}) AS [results_wrapper] WHERE [row_num] BETWEEN {parameterPlaceholder} AND {parameterPlaceholder}";
                 result.Bindings.Add(offset + 1);
                 result.Bindings.Add(limit + offset);
             }
